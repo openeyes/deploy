@@ -3,21 +3,165 @@
 function usage()
 {
 	echo
-	echo "Usage: deploy [-r] [-s] [path] <release branch>"
+	echo "Usage: deploy [-r] [-s] [-u] [path] [release branch]"
 	echo
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
+	echo "-u Update repos (git pull) and ensure they're on the release branch"
 	echo
 	echo "You can omit the path if you are currently in an OpenEyes directory tree."
+	echo "If you omit the release branch it will use whatever branch the core repo is on."
 	echo
 	exit 0
 }
 
-function check_root()
+function checkout_and_update()
 {
-	if [ ! -e "$path/modules/deploy/root" ] ; then
-		echo "Please set your MySQL root password in $path/modules/deploy/root"
-		exit 0
+	cd "$path"
+
+	echo -n "core: "
+
+	echo -n "checking branch.. "
+
+	do_checkout
+
+	echo -n "checking for updates.. "
+
+	do_pull
+
+	echo "ok"
+
+	for module in `ls -1 modules/`
+	do
+		cd "$path/modules/$module"
+
+		if [ "$module" != "deploy" ] ; then
+			echo -n "$module: "
+
+			do_checkout
+			do_pull
+
+			echo "ok"
+		fi
+	done
+}
+
+function do_checkout()
+{
+	git fetch 1>/dev/null 2>/dev/null
+
+	x=`git branch |grep "$branch"`
+
+	if [ -z "$x" ] ; then
+		echo -n "checking out branch.. "
+		r=`git checkout -b $branch --track origin/$branch 2>&1`
+		x=`echo "$r" | grep 'which can not be resolved as commit'`
+
+		if [ ! -z "$r" ] ; then
+			echo -n "branch doesn't exist.. "
+		else
+			echo
+			echo "Errors encountered:"
+			echo
+			echo "$r"
+			exit
+		fi
+	else
+		x=`git branch |egrep "^\\* $branch"`
+		if [ -z "$x" ] ; then
+			echo -n "checking out branch.. "
+			git checkout $branch
+		else
+			echo -n "already on branch.. "
+		fi
+	fi
+}
+
+function do_pull()
+{
+	r=`git pull 2>&1`
+	if [ "$r" != "Already up-to-date." ] ; then
+		x=`echo "$r" | grep 'fatal:'`
+		if [ ! -z "$x" ] ; then
+			echo
+			echo "Errors encountered:"
+			echo
+			echo "$r"
+			echo
+			exit
+		fi
+	fi
+}
+
+function migrate_all()
+{
+	echo -n "core: "
+
+	cd "$path"
+
+	module=""
+
+	do_migrate
+
+	echo "ok"
+
+	for module in `ls -1 modules/`
+	do
+		if [ -e "$path/modules/$module/migrations" ] ; then
+			if [ "$module" != "deploy" ] ; then
+				echo -n "$module: "
+				do_migrate
+				echo "ok"
+			fi
+		fi
+	done
+	rm -rf "$path/../assets/*"
+}
+
+function do_migrate()
+{
+	if [ "$module" == "" ] ; then
+		r=`echo 'yes' |./yiic migrate 2>&1`
+	else
+		r=`echo 'yes' |./yiic migrate --migrationPath=application.modules.$module.migrations 2>&1`
+	fi
+
+	x=`echo "$r" |grep 'Stack trace:'`
+	if [ ! -z "$x" ] ; then
+		echo "failed"
+		echo "$r"
+		exit
+	fi
+}
+
+function get_mysql()
+{
+	if [ -e "$HOME/.mysql_password" ] ; then
+		mysql_pass=`cat "$HOME/.mysql_password"`
+		mysql="mysql -uroot --password=$mysql_pass"
+	else
+		mysql="mysql -uroot"
+	fi
+}
+
+function verify_mysql()
+{
+	x=`echo "$r" |grep 'Access denied'`
+	if [ ! -z "$x" ] ; then
+		echo
+		echo "MySQL password is incorrect. Please ensure your root MySQL password is in $HOME/.mysql_password"
+		echo
+		exit
+	fi
+
+	x=`echo "$r" |grep 'ERROR'`
+	if [ ! -z "$x" ] ; then
+		echo
+		echo "Something went wrong executing the last MySQL command:"
+		echo
+		echo "$r"
+		echo
+		exit
 	fi
 }
 
@@ -25,6 +169,7 @@ path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
 
 reset=false
 sampledata=false
+update=false
 
 for var in "$@"
 do
@@ -32,6 +177,10 @@ do
 		reset=true
 	elif [ "$var" == "-s" ] ; then
 		sampledata=true
+	elif [ "$var" == "-u" ] ; then
+		update=true
+	elif [ "$var" == "-h" ] ; then
+		usage
 	else
 		if [ "$branch" == "" ] ; then
 			branch=$var
@@ -51,32 +200,71 @@ if [ ! -e "$path/yiic.php" ] ; then
 fi
 
 if [ "$branch" == "" ] ; then
-	usage
+	cd $path
+	branch=`git branch |egrep '^\*' |cut -d ' ' -f2`
 fi
-
-echo "Path: $path"
-echo "Branch: $branch"
-exit
 
 db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |head -n1`
 
-echo $db
+get_mysql
 
 if [ $reset == true ] ; then
-	check_root
+	echo
+	echo -n "Dropping $db ... "
+	r=`echo "drop database $db;" | $mysql 2>&1`
+	verify_mysql
+	echo "ok"
 
-	echo "Dropping $db ... "
-	echo "drop database $db;" |mysql -uroot --password=`cat $path/modules/deploy/root`
-	echo "Creating $db ... "
-	echo "create database $db;" |mysql -uroot --password=`cat $path/modules/deploy/root`
+	echo -n "Creating $db ... "
+	r=`echo "create database $db;" | $mysql 2>&1`
+	verify_mysql
+	echo "ok"
+
+	echo
 fi
 
 if [ $sampledata == true ] ; then
-	check_root
-
-	echo "Importing sample data ... "
-	cat "$path/modules/sample/sql/openeyes+ophtroperationbooking.sql" |mysql -uroot --password=`cat $path/modules/deploy/root`
+	echo -n "Importing sample data ... "
+	r=`cat "$path/modules/sample/sql/openeyes+ophtroperationbooking.sql" | $mysql -D $db 2>&1`
+	verify_mysql
+	echo "ok"
+	echo
 fi
 
+if [ $update == true ] ; then
+	echo "Updating repos and checking out to target release branch: $branch ... "
+	echo
+	checkout_and_update
+	echo
+fi
+
+echo "Running migrations ... "
+echo
+migrate_all
+migrate_all # For now just run this twice to deal with module dependencies
+echo
+
+echo "Nuking cache and asset directories ... "
+rm -rf "$path/../cache/*" "$path/cache/*"
+rm -rf "$path/../assets/*"
+echo
+
+if [ ! -e "$path/modules/deploy" ] ; then
+	echo "Checking out deploy repo into target instance directory ... "
+	echo
+	cd "$path/modules"
+	git clone https://github.com/openeyes/deploy
+	echo
+fi
+
+echo "Checking deploy repo out to target release branch: $branch ... "
+echo
+cd "$path/modules/deploy"
+do_checkout
+do_pull
+
 echo "Running deployment for: $branch ... "
-$path/modules/deploy/yiic migrate
+echo yes |./yiic migrate
+echo
+echo "$branch has been deployed to the instance at: $path"
+echo
