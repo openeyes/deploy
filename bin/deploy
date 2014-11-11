@@ -1,0 +1,82 @@
+#!/bin/bash
+
+function usage()
+{
+	echo
+	echo "Usage: deploy [-r] [-s] [path] <release branch>"
+	echo
+	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
+	echo "-s Import the sample data from the sample repo"
+	echo
+	echo "You can omit the path if you are currently in an OpenEyes directory tree."
+	echo
+	exit 0
+}
+
+function check_root()
+{
+	if [ ! -e "$path/modules/deploy/root" ] ; then
+		echo "Please set your MySQL root password in $path/modules/deploy/root"
+		exit 0
+	fi
+}
+
+path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
+
+reset=false
+sampledata=false
+
+for var in "$@"
+do
+	if [ "$var" == "-r" ] ; then
+		reset=true
+	elif [ "$var" == "-s" ] ; then
+		sampledata=true
+	else
+		if [ "$branch" == "" ] ; then
+			branch=$var
+		else
+			path=$branch
+			branch=$var
+		fi
+	fi
+done
+
+if [ -e "$path/protected" ] ; then
+	path="$path/protected"
+fi
+
+if [ ! -e "$path/yiic.php" ] ; then
+	usage
+fi
+
+if [ "$branch" == "" ] ; then
+	usage
+fi
+
+echo "Path: $path"
+echo "Branch: $branch"
+exit
+
+db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |head -n1`
+
+echo $db
+
+if [ $reset == true ] ; then
+	check_root
+
+	echo "Dropping $db ... "
+	echo "drop database $db;" |mysql -uroot --password=`cat $path/modules/deploy/root`
+	echo "Creating $db ... "
+	echo "create database $db;" |mysql -uroot --password=`cat $path/modules/deploy/root`
+fi
+
+if [ $sampledata == true ] ; then
+	check_root
+
+	echo "Importing sample data ... "
+	cat "$path/modules/sample/sql/openeyes+ophtroperationbooking.sql" |mysql -uroot --password=`cat $path/modules/deploy/root`
+fi
+
+echo "Running deployment for: $branch ... "
+$path/modules/deploy/yiic migrate
