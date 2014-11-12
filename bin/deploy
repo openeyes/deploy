@@ -3,11 +3,12 @@
 function usage()
 {
 	echo
-	echo "Usage: deploy [-r] [-s] [-u] [path] [release branch]"
+	echo "Usage: deploy [-r] [-s] [-u] [-y] [path] [release branch]"
 	echo
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
 	echo "-u Update repos (git pull) and ensure they're on the release branch"
+	echo "-y Answer yes to prompt to continue"
 	echo
 	echo "You can omit the path if you are currently in an OpenEyes directory tree."
 	echo "If you omit the release branch it will use whatever branch the core repo is on."
@@ -170,6 +171,7 @@ path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
 reset=false
 sampledata=false
 update=false
+prompt=true
 
 for var in "$@"
 do
@@ -181,6 +183,8 @@ do
 		update=true
 	elif [ "$var" == "-h" ] ; then
 		usage
+	elif [ "$var" == "-y" ] ; then
+		prompt=false
 	else
 		if [ "$branch" == "" ] ; then
 			branch=$var
@@ -202,6 +206,39 @@ fi
 if [ "$branch" == "" ] ; then
 	cd $path
 	branch=`git branch |egrep '^\*' |cut -d ' ' -f2`
+fi
+
+if [ $prompt == true ] ; then
+	while true; do
+		echo
+		echo "This will deploy branch $branch to the instance at $path"
+		echo
+		echo -n "Reset database: "
+		if [ $reset == true ] ; then
+			echo "YES"
+		else
+			echo "NO"
+		fi
+		echo -n "Import sample data: "
+		if [ $sampledata == true ] ; then
+			echo "YES"
+		else
+			echo "NO"
+		fi
+		echo -n "Checkout and update repos: "
+		if [ $update == true ] ; then
+			echo "YES"
+		else
+			echo "NO"
+		fi
+		echo
+		read -p "Continue? " yn
+		case $yn in
+			[Yy]* ) break;;
+			[Nn]* ) exit;;
+			* ) echo;echo "Please answer yes or no.";;
+		esac
+	done
 fi
 
 db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |head -n1`
