@@ -3,14 +3,25 @@
 function usage()
 {
 	echo
-	echo "Usage: deploy [-r] [-s] [-u] [path] [release branch]"
+	echo "Usage: deploy [-r] [-s] [-u] [-y] [-i <file>] [path] [release branch]"
 	echo
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
 	echo "-u Update repos (git pull) and ensure they're on the release branch"
+	echo "-y Answer yes to prompt to continue"
+	echo "-i Import additional SQL files (can be specified multiple times)"
+	echo "-a Import additional SQL files after deployment scripts (default)"
+	echo "-b Import additional SQL files *before* deployment scripts"
 	echo
 	echo "You can omit the path if you are currently in an OpenEyes directory tree."
 	echo "If you omit the release branch it will use whatever branch the core repo is on."
+	echo
+	echo "Examples:"
+	echo
+	echo "deploy -r master /var/www/master"
+	echo "deploy -rsu master /var/www/glaucoma-2.1"
+	echo "deploy -rsb -i file1 -i file2 -i file3 master /var/www/test-instance"
+	echo "deploy -rsbi file1 -i file2 develop /var/www/develop"
 	echo
 	exit 0
 }
@@ -165,22 +176,59 @@ function verify_mysql()
 	fi
 }
 
+function import_additional_files()
+{
+	for i in "${import_files[@]}"
+	do
+		echo -n "Importing: $i ... "
+		r=`cat "$i" | $mysql 2>&1`
+		verify_mysql
+		echo "ok"
+	done
+}
+
 path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
 
 reset=false
 sampledata=false
 update=false
+prompt=true
+next_importfile=false
+import_files=()
+import_files_after=true
 
 for var in "$@"
 do
-	if [ "$var" == "-r" ] ; then
-		reset=true
-	elif [ "$var" == "-s" ] ; then
-		sampledata=true
-	elif [ "$var" == "-u" ] ; then
-		update=true
-	elif [ "$var" == "-h" ] ; then
-		usage
+	if [ $next_importfile == true ] ; then
+		import_files+=($var)
+		next_importfile=false
+		continue
+	fi
+
+	if [ ${var:0:1} == "-" ] ; then
+		i=1
+		while [ $i -lt ${#var} ]
+		do
+			if [ ${var:$i:1} == "r" ] ; then
+				reset=true
+			elif [ ${var:$i:1} == "s" ] ; then
+				sampledata=true
+			elif [ ${var:$i:1} == "u" ] ; then
+				update=true
+			elif [ ${var:$i:1} == "h" ] ; then
+				usage
+			elif [ ${var:$i:1} == "y" ] ; then
+				prompt=false
+			elif [ ${var:$i:1} == "i" ] ; then
+				next_importfile=true
+			elif [ ${var:$i:1} == "a" ] ; then
+				import_files_after=true
+			elif [ ${var:$i:1} == "b" ] ; then
+				import_files_after=false
+			fi
+
+			i=$((i+1))
+		done
 	else
 		if [ "$branch" == "" ] ; then
 			branch=$var
@@ -202,6 +250,63 @@ fi
 if [ "$branch" == "" ] ; then
 	cd $path
 	branch=`git branch |egrep '^\*' |cut -d ' ' -f2`
+fi
+
+if [ ${#import_files} != 0 ] ; then
+	for i in "${import_files[@]}"
+	do
+		if [ ! -e "$i" ] ; then
+			echo "File not found: $i"
+			exit 0
+		fi
+	done
+fi
+
+if [ $prompt == true ] ; then
+	while true; do
+		echo
+		echo "This will deploy branch $branch to the instance at $path"
+		echo
+		echo -n "Reset database: "
+		if [ $reset == true ] ; then
+			echo "YES"
+		else
+			echo "NO"
+		fi
+		echo -n "Import sample data: "
+		if [ $sampledata == true ] ; then
+			echo "YES"
+		else
+			echo "NO"
+		fi
+		echo -n "Checkout and update repos: "
+		if [ $update == true ] ; then
+			echo "YES"
+		else
+			echo "NO"
+		fi
+		if [ ${#import_files} != 0 ] ; then
+			echo -n "Import additional files"
+			if [ $import_files_after == true ] ; then
+				echo -n " after deploy scripts: "
+			fi
+			if [ $import_files_after == false ] ; then
+				echo -n " before deploy scripts: "
+			fi
+			for i in "${import_files[@]}"
+			do
+				echo -n "$i "
+			done
+			echo
+		fi
+		echo
+		read -p "Continue? " yn
+		case $yn in
+			[Yy]* ) break;;
+			[Nn]* ) exit;;
+			* ) echo;echo "Please answer yes or no.";;
+		esac
+	done
 fi
 
 db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |head -n1`
@@ -241,13 +346,20 @@ fi
 echo "Running migrations ... "
 echo
 migrate_all
-migrate_all # For now just run this twice to deal with module dependencies
+migrate_all
 echo
 
 echo "Nuking cache and asset directories ... "
 rm -rf "$path/../cache/*" "$path/cache/*"
 rm -rf "$path/../assets/*"
 echo
+
+if [ ${#import_files} != 0 ] ; then
+	if [ $import_files_after == false ] ; then
+		import_additional_files
+		echo
+	fi
+fi
 
 if [ ! -e "$path/modules/deploy" ] ; then
 	echo "Checking out deploy repo into target instance directory ... "
@@ -268,3 +380,10 @@ echo yes |./yiic migrate
 echo
 echo "$branch has been deployed to the instance at: $path"
 echo
+
+if [ ${#import_files} != 0 ] ; then
+	if [ $import_files_after == true ] ; then
+		import_additional_files
+		echo
+	fi
+fi
