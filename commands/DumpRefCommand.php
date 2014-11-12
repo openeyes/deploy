@@ -18,6 +18,7 @@
  */
 
 class DumpRefCommand extends CConsoleCommand {
+	/* patterns for tables containing data which should not be exported (non-reference data) */
 	public $data_tables = array(
 		'address',
 		'/^audit_/',
@@ -54,12 +55,14 @@ class DumpRefCommand extends CConsoleCommand {
 		'rtt',
 	);
 
+	/* If users are being included in the export, these patterns should be included */
 	public $not_data_if_users_included = array(
 		'user',
 		'firm_user_assignment',
 		'/^user_/',
 	);
 
+	/* If a table has a foreign key to any of these tables, it is considered not reference data and thus excluded */
 	public $data_table_fks = array(
 		'patient',
 		'episode',
@@ -70,22 +73,27 @@ class DumpRefCommand extends CConsoleCommand {
 		'protected_file',
 	);
 
+	/* Contacts are excluded unless they relate to any of these tables (in which case the contact and any addresses are exported) */
 	public $allow_contacts_for = array(
 		'site',
 		'institution',
 		'user',
 	);
 
+	/* If users are not being exported, null out any fields in the list of tables here that are foreign key'd to the user table */
 	public $user_null_for = array(
 		'firm',
 	);
 
+	/* If users are not being exported, for each of these tables skip rows which point to users other than the admin user */
 	public $reduce_user_to_admin_for = array(
 		'ophouanaestheticsataudit_anaesthetist_lookup',
 		'ophtrintravitinjection_injectionuser',
 		'ophtrlaser_laser_operator',
 	);
 
+	/* Fields in these tables which map to element types will be remapped during export so that they match the correct element types in the database they are imported into */
+	/* Tables containing foreign keys to element types not in this list will be excluded from the export */
 	public $remap_element_type_for = array(
 		'ophciexamination_attribute_element',
 		'ophciexamination_element_set_item',
@@ -100,14 +108,17 @@ class DumpRefCommand extends CConsoleCommand {
 		'ophtroperationnote_procedure_element',
 	);
 
+	/* When processing the table on the left, don't follow foreign keys for any tables in the list on the right. This is necessary because user<>firm foreign keys create an infinite loop */
 	public $specifically_dont_recurse = array(
 		'user' => array('firm'),
 	);
 
+	/* Specific rows to skip, currently just used to skip the admin user account */
 	public $skip_rows = array(
 		'user' => array(1)
 	);
 
+	/* Set static values on specific fields, this is currently used to null out user.last_firm_id to prevent a recursion infinite loop and to set all user passwords to 'password' */
 	public $override_fields = array(
 		'user' => array(
 			'last_firm_id' => null,
@@ -116,11 +127,13 @@ class DumpRefCommand extends CConsoleCommand {
 		),
 	);
 
+	/* List of fields which denote that a row is soft-deleted */
 	public $soft_delete_deleted_fields = array(
 		'deleted',
 		'discontinued',
 	);
 
+	/* List of fields which denote that a row is active (not soft-deleted) */
 	public $soft_delete_active_fields = array(
 		'active',
 	);
@@ -197,6 +210,7 @@ class DumpRefCommand extends CConsoleCommand {
 		}
 	}
 
+	/* Determine whether the passed table has been selected by the user's arguments */
 	public function selected($table)
 	{
 		if (in_array('all',$this->args)) {
@@ -248,6 +262,7 @@ class DumpRefCommand extends CConsoleCommand {
 		return true;
 	}
 
+	/* This builds up a list of tables to process in the correct logical order to avoid foreign key issues */
 	public function scan($table)
 	{
 		$process = true;
@@ -291,6 +306,7 @@ class DumpRefCommand extends CConsoleCommand {
 		}
 	}
 
+	/* Dump the passed table out to stdout as SQL statements */
 	public function dump($table)
 	{
 		$columns = array_keys($table->columns);
