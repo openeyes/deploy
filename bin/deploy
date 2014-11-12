@@ -370,7 +370,7 @@ if [ $prompt == true ] ; then
 	done
 fi
 
-db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |head -n1`
+db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |cut -d '"' -f1 |head -n1`
 
 get_mysql
 
