@@ -1,0 +1,8 @@
+#!/bin/bash
+path=$0
+if [ -L "$path" ] ; then
+	path=`readlink -f "$path"`
+fi
+path=`dirname "$path"`
+cd "$path/../../../"
+./yiic dumpref $@
