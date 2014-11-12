@@ -196,6 +196,7 @@ prompt=true
 next_importfile=false
 import_files=()
 import_files_after=true
+path_set=false
 
 for var in "$@"
 do
@@ -235,6 +236,7 @@ do
 		else
 			path=$branch
 			branch=$var
+			path_set=true
 		fi
 	fi
 done
@@ -244,10 +246,14 @@ if [ -e "$path/protected" ] ; then
 fi
 
 if [ ! -e "$path/yiic.php" ] ; then
-	echo
-	echo "OpenEyes instance not found at path: $path"
-	echo
-	exit
+	if [ $path_set == false ] ; then
+		usage
+	else
+		echo
+		echo "OpenEyes instance not found at path: $path"
+		echo
+		exit
+	fi
 fi
 
 if [ "$branch" == "" ] ; then
