@@ -47,10 +47,17 @@ class DumpRefCommand extends CConsoleCommand {
 		'/_version$/',
 		'/^et_/',
 		'/^user_/',
+		'user_session',
 		'person',
 		'practice',
 		'protected_file',
 		'rtt',
+	);
+
+	public $not_data_if_users_included = array(
+		'user',
+		'firm_user_assignment',
+		'/^user_/',
 	);
 
 	public $data_table_fks = array(
@@ -66,6 +73,7 @@ class DumpRefCommand extends CConsoleCommand {
 	public $allow_contacts_for = array(
 		'site',
 		'institution',
+		'user',
 	);
 
 	public $user_null_for = array(
@@ -92,15 +100,30 @@ class DumpRefCommand extends CConsoleCommand {
 		'ophtroperationnote_procedure_element',
 	);
 
+	public $specifically_dont_recurse = array(
+		'user' => array('firm'),
+	);
+
+	public $override_fields = array(
+		'user' => array(
+			'last_firm_id' => null,
+			'salt' => 'fi3hf83',
+			'password' => '7d3675bbedc5b0382c672489b99076f1',
+		),
+	);
+
 	public $args;
 	public $to_process = array();
 	public $event_types = array();
+	public $include_users = false;
+	public $recurse_dependencies = false;
 
 	public function usage()
 	{
-		echo "\nUsage: dumpref -r [tables]\n\n";
+		echo "\nUsage: dumpref [-r] [-u] [tables]\n\n";
 		echo "Where [tables] is \"all\" or any combination of \"core\" and module classnames.\n\n";
-		echo "-r: recursively include tables referenced by selected tables.\n\n";
+		echo "-r: recursively include tables referenced by selected tables.\n";
+		echo "-u: include users in the dump (passwords will be set to \"password\"\n\n";
 		echo "eg: dumpref core OphCiExamination OphCiPhasing\n\n";
 		exit;
 	}
@@ -111,6 +134,33 @@ class DumpRefCommand extends CConsoleCommand {
 
 		if (empty($this->args)) {
 			$this->usage();
+		}
+
+		foreach ($this->args as $arg) {
+			if ($arg[0] == '-') {
+				for ($i=1; $i<strlen($arg); $i++) {
+					switch ($arg[$i]) {
+						case 'r':
+							$this->recurse_dependencies = true;
+							break;
+						case 'u':
+							$this->include_users = true;
+							break;
+					}
+				}
+			}
+		}
+
+		if ($this->include_users) {
+			$new_data_tables = array();
+
+			foreach ($this->data_tables as $data_table) {
+				if (!in_array($data_table, $this->not_data_if_users_included)) {
+					$new_data_tables[] = $data_table;
+				}
+			}
+
+			$this->data_tables = $new_data_tables;
 		}
 
 		foreach (Yii::app()->db->createCommand()->select("*")->from("event_type")->queryAll() as $et) {
@@ -191,13 +241,13 @@ class DumpRefCommand extends CConsoleCommand {
 			if (!in_array($field,array('created_user_id','last_modified_user_id'))) {
 				$_table = Yii::app()->db->schema->getTable($fk[0]);
 
-				if ($table->name != $_table->name && !in_array($_table->name,$this->to_process) && (in_array('-r',$this->args) || $this->selected($_table->name))) {
+				if ($table->name != $_table->name && !in_array($_table->name,$this->to_process) && ($this->recurse_dependencies || $this->selected($_table->name)) && (!isset($this->specifically_dont_recurse[$table->name]) || !in_array($_table->name,$this->specifically_dont_recurse[$table->name]))) {
 					if ($this->isReferenceTable($_table)) {
 						$this->scan($_table);
 					} else {
 						switch ($fk[0]) {
 							case 'user':
-								if (!in_array($table->name,$this->user_null_for) &&
+								if (!$this->include_users && !in_array($table->name,$this->user_null_for) &&
 									!in_array($table->name,$this->reduce_user_to_admin_for)) {
 									$process = false;
 								}
@@ -264,7 +314,7 @@ class DumpRefCommand extends CConsoleCommand {
 		$filtered_rows = array();
 
 		foreach ($rows as $row) {
-			if (in_array($table->name,$this->reduce_user_to_admin_for)) {
+			if (!$this->include_users && in_array($table->name,$this->reduce_user_to_admin_for)) {
 				$skip = false;
 				foreach ($table->foreignKeys as $field => $fk) {
 					if (!in_array($field,array('created_user_id','last_modified_user_id'))) {
@@ -299,7 +349,7 @@ class DumpRefCommand extends CConsoleCommand {
 
 		$i = 0;
 		foreach ($rows as $row) {
-			if (in_array($table->name,$this->user_null_for)) {
+			if (!$this->include_users && in_array($table->name,$this->user_null_for)) {
 				foreach ($table->foreignKeys as $field => $fk) {
 					if (!in_array($field,array('created_user_id','last_modified_user_id'))) {
 						if ($fk[0] == 'user') {
@@ -344,8 +394,15 @@ class DumpRefCommand extends CConsoleCommand {
 
 	public function dump_insert($table, $row)
 	{
-		$row['created_user_id'] = $row['last_modified_user_id'] = 1;
-		$row['created_date'] = $row['last_modified_date'] = '1900-01-01 00:00:00';
+		if (!$this->include_users) {
+			$row['created_user_id'] = $row['last_modified_user_id'] = 1;
+		}
+
+		if (isset($this->override_fields[$table->name])) {
+			foreach ($this->override_fields[$table->name] as $key => $value) {
+				$row[$key] = $value;
+			}
+		}
 
 		$columns = array_keys($table->columns);
 
