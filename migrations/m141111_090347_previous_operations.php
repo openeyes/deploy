@@ -4,12 +4,8 @@ class m141111_090347_previous_operations extends CDbMigration
 {
 	public function up()
 	{
-		foreach (CommonPreviousOperation::model()->findAll(array('order' => 'name asc')) as $i => $cpo) {
-			$cpo->display_order = $i;
-
-			if (!$cpo->save()) {
-				throw new Exception("Unable to save CommonPreviousOperation: ".print_r($cpo->errors,true));
-			}
+		foreach ($this->dbConnection->createCommand()->select("*")->from("common_previous_operation")->order("name asc")->queryAll() as $i => $cpo) {
+			$this->dbConnection->createCommand("update common_previous_operation set display_order = $i where id = {$cpo['id']}")->query();
 		}
 	}
 

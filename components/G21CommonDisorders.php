@@ -17,14 +17,12 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html The GNU General Public License V3.0
  */
 
-class G21Command extends CConsoleCommand
+class G21CommonDisorders
 {
-	public function run($args)
+	public function import($file)
 	{
-		if (!empty($args)) {
-			$file = $args[0];
-		} else {
-			$file = "/tmp/g21d.csv";
+		if (!file_exists($file)) {
+			throw new Exception("File not found: $file");
 		}
 
 		$fp = fopen($file,"r");
