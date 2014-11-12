@@ -8,7 +8,7 @@ function usage()
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
 	echo "-u Update repos (git pull) and ensure they're on the release branch"
-	echo "-y Answer yes to prompt to continue"
+	echo "-y Don't prompt to continue, just do it"
 	echo "-i Import additional SQL files (can be specified multiple times)"
 	echo "-a Import additional SQL files after deployment scripts (default)"
 	echo "-b Import additional SQL files *before* deployment scripts"
