@@ -104,6 +104,10 @@ class DumpRefCommand extends CConsoleCommand {
 		'user' => array('firm'),
 	);
 
+	public $skip_rows = array(
+		'user' => array(1)
+	);
+
 	public $override_fields = array(
 		'user' => array(
 			'last_firm_id' => null,
@@ -340,6 +344,10 @@ class DumpRefCommand extends CConsoleCommand {
 				if ($skip) {
 					continue;
 				}
+			}
+
+			if (@$table->primaryKey && isset($this->skip_rows[$table->name]) && in_array($row[$table->primaryKey],$this->skip_rows[$table->name])) {
+				continue;
 			}
 
 			$filtered_rows[] = $row;
