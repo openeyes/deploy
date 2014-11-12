@@ -112,18 +112,29 @@ class DumpRefCommand extends CConsoleCommand {
 		),
 	);
 
+	public $soft_delete_deleted_fields = array(
+		'deleted',
+		'discontinued',
+	);
+
+	public $soft_delete_active_fields = array(
+		'active',
+	);
+
 	public $args;
 	public $to_process = array();
 	public $event_types = array();
 	public $include_users = false;
 	public $recurse_dependencies = false;
+	public $soft_delete = false;
 
 	public function usage()
 	{
-		echo "\nUsage: dumpref [-r] [-u] [tables]\n\n";
+		echo "\nUsage: dumpref [-r] [-u] [-d] [tables]\n\n";
 		echo "Where [tables] is \"all\" or any combination of \"core\" and module classnames.\n\n";
 		echo "-r: recursively include tables referenced by selected tables.\n";
 		echo "-u: include users in the dump (passwords will be set to \"password\"\n\n";
+		echo "-d: soft delete pre-existing rows if not present in the exported data\n\n";
 		echo "eg: dumpref core OphCiExamination OphCiPhasing\n\n";
 		exit;
 	}
@@ -335,6 +346,32 @@ class DumpRefCommand extends CConsoleCommand {
 		}
 
 		if (count($filtered_rows) >0) {
+			if ($this->soft_delete && @$table->primaryKey) {
+				$deleted_field = $active_field = false;
+
+				foreach ($this->soft_delete_deleted_fields as $field) {
+					if (isset($table->columns[$field])) {
+						$deleted_field = $field;
+						break;
+					}
+				}
+
+				if (!$deleted_field) {
+					foreach ($this->soft_delete_active_fields as $field) {
+						if (isset($table->columns[$field])) {
+							$active_field = $field;
+						}
+					}
+				}
+
+				if ($deleted_field || $active_field) {
+					$field = $deleted_field ? $deleted_field : $active_field;
+					$value = $deleted_field ? 1 : 0;
+
+					echo "UPDATE `$table->name` SET `$field` = `$value`;\n";
+				}
+			}
+
 			$this->dump_rows($table,$filtered_rows);
 		}
 	}
