@@ -3,7 +3,7 @@
 function usage()
 {
 	echo
-	echo "Usage: deploy [-r] [-s] [-u] [-y] [-i <file>] [path] [release branch]"
+	echo "Usage: deploy [-rsuyabm] [-i <file>] [path] [release branch]"
 	echo
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
@@ -12,9 +12,16 @@ function usage()
 	echo "-i Import additional SQL files (can be specified multiple times)"
 	echo "-a Import additional SQL files after deployment scripts (default)"
 	echo "-b Import additional SQL files *before* deployment scripts"
+	echo "-m Import reference data from preconfigured url path (excluding users)"
+	echo "-n Import reference data from preconfigured url path (including users)"
 	echo
 	echo "You can omit the path if you are currently in an OpenEyes directory tree."
 	echo "If you omit the release branch it will use whatever branch the core repo is on."
+	echo
+	echo "For -m and -n to work you need to create $HOME/.deploy.conf with lines like:"
+	echo
+	echo "all:http://path/to/ref_all.sql"
+	echo "all-users:http://path/to/ref_all_users.sql"
 	echo
 	echo "Examples:"
 	echo
@@ -187,6 +194,28 @@ function import_additional_files()
 	done
 }
 
+function import_from_url()
+{
+	echo -n "Importing remote sql data: $import_url ... "
+	r=`wget -qO- "$import_url" | gunzip | $mysql -D $db 2>&1`
+	verify_mysql
+	echo "ok"
+}
+
+function load_deploy_config()
+{
+	if [ ! -e "$HOME/.deploy.conf" ] ; then
+		echo "$HOME/.deploy.conf doesn't exist."
+		exit 0
+	fi
+
+	if [ $import_ref_all == true ] ; then
+		import_url=`cat "$HOME/.deploy.conf" |egrep '^all:' |sed 's/^all://'`
+	else
+		import_url=`cat "$HOME/.deploy.conf" |egrep '^all-users:' |sed 's/^all://'`
+	fi
+}
+
 path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
 
 reset=false
@@ -197,6 +226,8 @@ next_importfile=false
 import_files=()
 import_files_after=true
 path_set=false
+import_ref_all=false
+import_ref_all_users=false
 
 for var in "$@"
 do
@@ -226,6 +257,18 @@ do
 				import_files_after=true
 			elif [ ${var:$i:1} == "b" ] ; then
 				import_files_after=false
+			elif [ ${var:$i:1} == "m" ] ; then
+				if [ $import_ref_all_users == true ] ; then
+					echo "-m and -n cannot be used together."
+					exit 0
+				fi
+				import_ref_all=true
+			elif [ ${var:$i:1} == "n" ] ; then
+				if [ $import_ref_all == true ] ; then
+					echo "-m and -n cannot be used together."
+					exit 0
+				fi
+				import_ref_all_users=true
 			fi
 
 			i=$((i+1))
@@ -271,6 +314,10 @@ if [ ${#import_files} != 0 ] ; then
 	done
 fi
 
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	load_deploy_config
+fi
+
 if [ $prompt == true ] ; then
 	while true; do
 		echo
@@ -307,6 +354,11 @@ if [ $prompt == true ] ; then
 				echo -n "$i "
 			done
 			echo
+		fi
+		if [ $import_ref_all == true ] ; then
+			echo "Import reference data (without users) from: $import_url"
+		elif [ $import_ref_all_users == true ] ; then
+			echo "Import reference data (with users) from: $import_url"
 		fi
 		echo
 		read -p "Continue? " yn
@@ -363,6 +415,13 @@ rm -rf "$path/../cache/*" "$path/cache/*"
 rm -rf "$path/../assets/*"
 echo
 
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	if [ $import_files_after == false ] ; then
+		import_from_url
+		echo
+	fi
+fi
+
 if [ ${#import_files} != 0 ] ; then
 	if [ $import_files_after == false ] ; then
 		import_additional_files
@@ -389,6 +448,13 @@ echo yes |./yiic migrate
 echo
 echo "$branch has been deployed to the instance at: $path"
 echo
+
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	if [ $import_files_after == true ] ; then
+		import_from_url
+		echo
+	fi
+fi
 
 if [ ${#import_files} != 0 ] ; then
 	if [ $import_files_after == true ] ; then
