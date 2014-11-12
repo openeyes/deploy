@@ -10,8 +10,8 @@ function usage()
 	echo "-u Update repos (git pull) and ensure they're on the release branch"
 	echo "-y Don't prompt to continue, just do it"
 	echo "-i Import additional SQL files (can be specified multiple times)"
-	echo "-a Import additional SQL files after deployment scripts (default)"
-	echo "-b Import additional SQL files *before* deployment scripts"
+	echo "-a Import additional SQL files after deployment scripts"
+	echo "-b Import additional SQL files before deployment scripts (default)"
 	echo "-m Import reference data from preconfigured url path (excluding users)"
 	echo "-n Import reference data from preconfigured url path (including users)"
 	echo
@@ -224,7 +224,7 @@ update=false
 prompt=true
 next_importfile=false
 import_files=()
-import_files_after=true
+import_files_after=false
 path_set=false
 import_ref_all=false
 import_ref_all_users=false
