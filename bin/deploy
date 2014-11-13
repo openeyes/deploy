@@ -99,8 +99,9 @@ function do_pull()
 {
 	r=`git pull 2>&1`
 	if [ "$r" != "Already up-to-date." ] ; then
-		x=`echo "$r" | grep 'fatal:'`
-		if [ ! -z "$x" ] ; then
+		x1=`echo "$r" | grep 'fatal:'`
+		x2=`echo "$r" | grep 'error:'`
+		if [ ! -z "$x1" ] || [ ! -z "$x2" ] ; then
 			echo
 			echo "Errors encountered:"
 			echo
