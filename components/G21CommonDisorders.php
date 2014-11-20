@@ -32,7 +32,7 @@ class G21CommonDisorders
 		$gla = Subspecialty::model()->find('name=?',array('Glaucoma'));
 
 		if (!Disorder::model()->findByPk(103)) {
-			Yii::app()->db->createCommand("insert into disorder `id`,`fully_specified_name`,`term`,`active` values (103,'Glaucoma Suspect (disorder)','Glaucoma Suspect',1)")->query();
+			Yii::app()->db->createCommand("insert into disorder (`id`,`fully_specified_name`,`term`,`active`) values (103,'Glaucoma Suspect (disorder)','Glaucoma Suspect',1)")->query();
 		}
 
 		$snomeds = array();
