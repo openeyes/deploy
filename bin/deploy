@@ -173,6 +173,14 @@ function verify_mysql()
 		exit
 	fi
 
+	x=`echo "$r" |grep "Can't drop database"`
+	if [ ! -z "$x" ] ; then
+		echo
+		echo "$r"
+		echo
+		return
+	fi
+
 	x=`echo "$r" |grep 'ERROR'`
 	if [ ! -z "$x" ] ; then
 		echo
