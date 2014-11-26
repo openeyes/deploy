@@ -3,10 +3,11 @@
 function usage()
 {
 	echo
-	echo "Usage: deploy [-rsuyabm] [-i <file>] [path] [release branch]"
+	echo "Usage: deploy [-rsuyabm] [-p <file>] [-i <file>] [path] [release branch]"
 	echo
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
+	echo "-p Import pre-load SQL file before anything else"
 	echo "-u Update repos (git pull) and ensure they're on the release branch"
 	echo "-y Don't prompt to continue, just do it"
 	echo "-i Import additional SQL files (can be specified multiple times)"
@@ -173,6 +174,14 @@ function verify_mysql()
 		exit
 	fi
 
+	x=`echo "$r" |grep "Can't drop database"`
+	if [ ! -z "$x" ] ; then
+		echo
+		echo "$r"
+		echo
+		return
+	fi
+
 	x=`echo "$r" |grep 'ERROR'`
 	if [ ! -z "$x" ] ; then
 		echo
@@ -223,6 +232,8 @@ reset=false
 sampledata=false
 update=false
 prompt=true
+next_preload=false
+preloadfile=false
 next_importfile=false
 import_files=()
 import_files_after=false
@@ -235,6 +246,12 @@ do
 	if [ $next_importfile == true ] ; then
 		import_files+=($var)
 		next_importfile=false
+		continue
+	fi
+
+	if [ $next_preload == true ] ; then
+		preloadfile=$var
+		next_preload=false
 		continue
 	fi
 
@@ -252,6 +269,8 @@ do
 				usage
 			elif [ ${var:$i:1} == "y" ] ; then
 				prompt=false
+			elif [ ${var:$i:1} == "p" ] ; then
+				next_preload=true
 			elif [ ${var:$i:1} == "i" ] ; then
 				next_importfile=true
 			elif [ ${var:$i:1} == "a" ] ; then
@@ -330,6 +349,10 @@ if [ $prompt == true ] ; then
 		else
 			echo "NO"
 		fi
+		if [ ! $preloadfile == false ] ; then
+			echo -n "Preload database with: "
+			echo "$preloadfile" 
+		fi
 		echo -n "Import sample data: "
 		if [ $sampledata == true ] ; then
 			echo "YES"
@@ -387,6 +410,14 @@ if [ $reset == true ] ; then
 	verify_mysql
 	echo "ok"
 
+	echo
+fi
+
+if [ ! $preloadfile == false ] ; then
+	echo -n "Importing preload file: $preloadfile ... "
+	r=`cat "$preloadfile" | $mysql -D $db 2>&1`
+	verify_mysql
+	echo "ok"
 	echo
 fi
 
