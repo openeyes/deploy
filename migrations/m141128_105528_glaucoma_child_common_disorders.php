@@ -6,6 +6,8 @@ class m141128_105528_glaucoma_child_common_disorders extends CDbMigration
 	{
 		$oph_id = $this->dbConnection->createCommand()->select("id")->from("specialty")->where("name = :name",array(":name" => 'Ophthalmology'))->queryScalar();
 		$glaucoma_id = $this->dbConnection->createCommand()->select("id")->from("subspecialty")->where("specialty_id = :si and name = :name",array(":si" => $oph_id, ":name" => "Glaucoma"))->queryScalar();
+		$group_id = $this->dbConnection->createCommand()->select("id")->from("common_ophthalmic_disorder_group")
+			->where("name=:name",array(":name" => "Paediatric glaucoma diagnoses and findings"))->queryScalar();
 
 		$this->dbConnection->createCommand("update disorder set specialty_id = $oph_id where id in (104,105,106)")->query();
 
@@ -47,6 +49,7 @@ class m141128_105528_glaucoma_child_common_disorders extends CDbMigration
 					$this->insert('common_ophthalmic_disorder',array(
 						'disorder_id' => $disorder['id'],
 						'subspecialty_id' => $glaucoma_id,
+						'group_id' => $group_id,
 						'display_order' => $cod_do++,
 					));
 

@@ -5,8 +5,11 @@ class m141127_105011_g21_diagnoses_and_findings extends CDbMigration
 	public function up()
 	{
 		$glaucoma_id = $this->dbConnection->createCommand()->select("id")->from("subspecialty")->where("name=:name",array(":name" => "Glaucoma"))->queryScalar();
+		$group_id = $this->dbConnection->createCommand()->select("id")->from("common_ophthalmic_disorder_group")
+			->where("name=:name",array(":name" => "Adult glaucoma diagnoses and findings"))->queryScalar();
 
-		foreach ($this->dbConnection->createCommand()->select("*")->from("common_ophthalmic_disorder")->where("subspecialty_id=$glaucoma_id")->queryAll() as $cod) {
+		foreach ($this->dbConnection->createCommand()->select("*")->from("common_ophthalmic_disorder")
+					 ->where("subspecialty_id=:glaucoma_id")->queryAll(true, array(':glaucoma_id' => $glaucoma_id)) as $cod) {
 			$this->dbConnection->createCommand("delete from secondaryto_common_oph_disorder where parent_id = {$cod['id']}")->query();
 		}
 
@@ -39,6 +42,7 @@ class m141127_105011_g21_diagnoses_and_findings extends CDbMigration
 				$cod = array();
 				$cod['display_order'] = $parent_do++;
 				$cod['subspecialty_id'] = $glaucoma_id;
+				$cod['group_id'] = $group_id;
 
 				if ($data[4]) {
 					if (!preg_match('/\[([0-9]+)\]/',$data[4],$m)) {
