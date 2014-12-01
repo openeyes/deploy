@@ -26,10 +26,10 @@ function usage()
 	echo
 	echo "Examples:"
 	echo
-	echo "deploy -r master /var/www/master"
-	echo "deploy -rsu master /var/www/glaucoma-2.1"
-	echo "deploy -rsb -i file1 -i file2 -i file3 master /var/www/test-instance"
-	echo "deploy -rsbi file1 -i file2 develop /var/www/develop"
+	echo "deploy -r /var/www/master master"
+	echo "deploy -rsu /var/www/glaucoma-2.1 feature/glaucoma-2.1"
+	echo "deploy -rsb -i file1 -i file2 -i file3 /var/www/test-instance master"
+	echo "deploy -rsbi file1 -i file2 /var/www/develop develop"
 	echo
 	exit 0
 }
