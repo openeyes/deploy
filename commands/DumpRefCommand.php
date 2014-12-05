@@ -31,7 +31,6 @@ class DumpRefCommand extends CConsoleCommand {
 		'contact_location',
 		'contact_metadata',
 		'element_type',
-		'episode_summary',
 		'event_group',
 		'event_type',
 		'event_issue',
