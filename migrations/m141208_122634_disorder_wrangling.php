@@ -9,7 +9,7 @@ class m141208_122634_disorder_wrangling extends CDbMigration
 		$disorders = array();
 
 		foreach (array(
-				'Pseudoexfoliation Glaucoma' => 'Pseudoexfoliation',
+				'Pseudoexfoliation glaucoma' => 'Pseudoexfoliation',
 				'Uveitic glaucoma' => 'Uveitis',
 				'Aphakic glaucoma' => 'Aphakia',
 				'Neovascularisation of the Angle' => 'Neovascularisation of Angle',
@@ -87,7 +87,7 @@ class m141208_122634_disorder_wrangling extends CDbMigration
 		$this->delete('disorder','id in (122,123)');
 
 		foreach (array(
-				'Pseudoexfoliation Glaucoma' => 'Pseudoexfoliation',
+				'Pseudoexfoliation glaucoma' => 'Pseudoexfoliation',
 				'Uveitic glaucoma' => 'Uveitis',
 				'Aphakic glaucoma' => 'Aphakia',
 				'Neovascularisation of the Angle' => 'Neovascularisation of Angle',
