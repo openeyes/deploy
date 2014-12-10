@@ -27,7 +27,7 @@ class m141209_095850_paediatric_admission_letter_telephone_numbers extends CDbMi
 				'rule_order' => 0,
 				'is_child' => 1,
 				'show_warning' => 1,
-				'warning_text' => 'please telephone 020 7566 2595 and ask to speak to a nurse for advice',
+				'warning_text' => 'please telephone 020 8725 0060 and ask to speak to a nurse for advice',
 		));
 	}
 
