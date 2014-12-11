@@ -13,8 +13,8 @@ function usage()
 	echo "-i Import additional SQL files (can be specified multiple times)"
 	echo "-a Import additional SQL files after deployment scripts"
 	echo "-b Import additional SQL files before deployment scripts (default)"
-	echo "-m Import reference data from preconfigured url path (excluding users)"
-	echo "-n Import reference data from preconfigured url path (including users)"
+	echo "-m Import reference data from preconfigured url path (excluding users, always done before newer migrations)"
+	echo "-n Import reference data from preconfigured url path (including users, always done before newer migrations))"
 	echo
 	echo "You can omit the path if you are currently in an OpenEyes directory tree."
 	echo "If you omit the release branch it will use whatever branch the core repo is on."
@@ -89,10 +89,33 @@ function do_checkout()
 		x=`git branch |egrep "^\\* $branch"`
 		if [ -z "$x" ] ; then
 			echo -n "checking out branch.. "
-			git checkout $branch
+			r=`git checkout $branch 2>&1`
+			x=`echo "$r" |grep 'Switched to branch'`
+			if [ -z "$x" ] ; then
+				echo
+				echo "Errors encountered:"
+				echo
+				echo "$r"
+				exit
+			fi
 		else
 			echo -n "already on branch.. "
 		fi
+	fi
+}
+
+function do_checkout_commit()
+{
+	git fetch 1>/dev/null 2>/dev/null
+
+	r=`git checkout $commit 2>&1`
+	x=`echo "$r" |egrep '^HEAD is now at'`
+	if [ -z "$x" ] ; then
+		echo
+		echo "Errors encountered:"
+		echo
+		echo "$r"
+		exit
 	fi
 }
 
@@ -224,6 +247,8 @@ function load_deploy_config()
 	else
 		import_url=`cat "$HOME/.deploy.conf" |egrep '^all-users:' |sed 's/^all://'`
 	fi
+
+	commit_url=`cat "$HOME/.deploy.conf" |egrep '^commits:' |sed 's/^commits://'`
 }
 
 path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
@@ -396,6 +421,33 @@ fi
 
 db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |cut -d '"' -f1 |head -n1`
 
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	echo
+	echo -n "Checking repos out to reference data hashes ... "
+	commits=`wget -qO- "$commit_url"`
+	commit_list=$(echo $commits | tr ";" "\n")
+
+	for item in $commit_list
+	do
+		repo=`echo "$item" |sed 's/:.*$//'`
+		commit=`echo "$item" |sed 's/^.*://'`
+
+		if [ "$repo" == "core" ] ; then
+			cd "$path"
+		else
+			if [ ! -e "$path/modules/$repo" ] ; then
+				echo "failed"
+				echo "Path not found: $path/modules/$repo"
+				exit 0
+			fi
+			cd "$path/modules/$repo"
+		fi
+		do_checkout_commit
+	done
+	echo "ok"
+	echo
+fi
+
 get_mysql
 
 if [ $reset == true ] ; then
@@ -430,10 +482,12 @@ if [ $sampledata == true ] ; then
 fi
 
 if [ $update == true ] ; then
-	echo "Updating repos and checking out to target release branch: $branch ... "
-	echo
-	checkout_and_update
-	echo
+	if [ $import_ref_all == false ] && [ $import_ref_all_users == false ] ; then
+		echo "Updating repos and checking out to target release branch: $branch ... "
+		echo
+		checkout_and_update
+		echo
+	fi
 fi
 
 echo "Running migrations ... "
@@ -448,10 +502,39 @@ rm -rf "$path/../assets/*"
 echo
 
 if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
-	if [ $import_files_after == false ] ; then
-		import_from_url
+	import_from_url
+fi
+
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	if [ $update == true ] ; then
+		echo "Updating repos and checking out to target release branch: $branch ... "
 		echo
+		checkout_and_update
+		echo
+	else
+		echo "Switching repos back to target release branch: $branch ... "
+		for item in $commit_list
+		do
+			repo=`echo "$item" |sed 's/:.*$//'`
+
+			if [ "$repo" == "core" ] ; then
+				cd "$path"
+			else
+				if [ ! -e "$path/modules/$repo" ] ; then
+					echo "failed"
+					echo "Path not found: $path/modules/$repo"
+					exit 0
+				fi
+				cd "$path/modules/$repo"
+			fi
+			do_checkout
+		done
 	fi
+	echo "Running migrations ... "
+	echo
+	migrate_all
+	migrate_all
+	echo
 fi
 
 if [ ${#import_files} != 0 ] ; then
@@ -480,13 +563,6 @@ echo yes |./yiic migrate
 echo
 echo "$branch has been deployed to the instance at: $path"
 echo
-
-if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
-	if [ $import_files_after == true ] ; then
-		import_from_url
-		echo
-	fi
-fi
 
 if [ ${#import_files} != 0 ] ; then
 	if [ $import_files_after == true ] ; then
