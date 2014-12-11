@@ -3,17 +3,18 @@
 function usage()
 {
 	echo
-	echo "Usage: deploy [-rsuyabm] [-i <file>] [path] [release branch]"
+	echo "Usage: deploy [-rsuyabm] [-p <file>] [-i <file>] [path] [release branch]"
 	echo
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
+	echo "-p Import pre-load SQL file before anything else"
 	echo "-u Update repos (git pull) and ensure they're on the release branch"
 	echo "-y Don't prompt to continue, just do it"
 	echo "-i Import additional SQL files (can be specified multiple times)"
 	echo "-a Import additional SQL files after deployment scripts"
 	echo "-b Import additional SQL files before deployment scripts (default)"
-	echo "-m Import reference data from preconfigured url path (excluding users)"
-	echo "-n Import reference data from preconfigured url path (including users)"
+	echo "-m Import reference data from preconfigured url path (excluding users, always done before newer migrations)"
+	echo "-n Import reference data from preconfigured url path (including users, always done before newer migrations))"
 	echo
 	echo "You can omit the path if you are currently in an OpenEyes directory tree."
 	echo "If you omit the release branch it will use whatever branch the core repo is on."
@@ -25,10 +26,10 @@ function usage()
 	echo
 	echo "Examples:"
 	echo
-	echo "deploy -r master /var/www/master"
-	echo "deploy -rsu master /var/www/glaucoma-2.1"
-	echo "deploy -rsb -i file1 -i file2 -i file3 master /var/www/test-instance"
-	echo "deploy -rsbi file1 -i file2 develop /var/www/develop"
+	echo "deploy -r /var/www/master master"
+	echo "deploy -rsu /var/www/glaucoma-2.1 feature/glaucoma-2.1"
+	echo "deploy -rsb -i file1 -i file2 -i file3 /var/www/test-instance master"
+	echo "deploy -rsbi file1 -i file2 /var/www/develop develop"
 	echo
 	exit 0
 }
@@ -88,10 +89,33 @@ function do_checkout()
 		x=`git branch |egrep "^\\* $branch"`
 		if [ -z "$x" ] ; then
 			echo -n "checking out branch.. "
-			git checkout $branch
+			r=`git checkout $branch 2>&1`
+			x=`echo "$r" |grep 'Switched to branch'`
+			if [ -z "$x" ] ; then
+				echo
+				echo "Errors encountered:"
+				echo
+				echo "$r"
+				exit
+			fi
 		else
 			echo -n "already on branch.. "
 		fi
+	fi
+}
+
+function do_checkout_commit()
+{
+	git fetch 1>/dev/null 2>/dev/null
+
+	r=`git checkout $commit 2>&1`
+	x=`echo "$r" |egrep '^HEAD is now at'`
+	if [ -z "$x" ] ; then
+		echo
+		echo "Errors encountered:"
+		echo
+		echo "$r"
+		exit
 	fi
 }
 
@@ -173,6 +197,14 @@ function verify_mysql()
 		exit
 	fi
 
+	x=`echo "$r" |grep "Can't drop database"`
+	if [ ! -z "$x" ] ; then
+		echo
+		echo "$r"
+		echo
+		return
+	fi
+
 	x=`echo "$r" |grep 'ERROR'`
 	if [ ! -z "$x" ] ; then
 		echo
@@ -215,6 +247,8 @@ function load_deploy_config()
 	else
 		import_url=`cat "$HOME/.deploy.conf" |egrep '^all-users:' |sed 's/^all://'`
 	fi
+
+	commit_url=`cat "$HOME/.deploy.conf" |egrep '^commits:' |sed 's/^commits://'`
 }
 
 path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
@@ -223,6 +257,8 @@ reset=false
 sampledata=false
 update=false
 prompt=true
+next_preload=false
+preloadfile=false
 next_importfile=false
 import_files=()
 import_files_after=false
@@ -235,6 +271,12 @@ do
 	if [ $next_importfile == true ] ; then
 		import_files+=($var)
 		next_importfile=false
+		continue
+	fi
+
+	if [ $next_preload == true ] ; then
+		preloadfile=$var
+		next_preload=false
 		continue
 	fi
 
@@ -252,6 +294,8 @@ do
 				usage
 			elif [ ${var:$i:1} == "y" ] ; then
 				prompt=false
+			elif [ ${var:$i:1} == "p" ] ; then
+				next_preload=true
 			elif [ ${var:$i:1} == "i" ] ; then
 				next_importfile=true
 			elif [ ${var:$i:1} == "a" ] ; then
@@ -330,6 +374,10 @@ if [ $prompt == true ] ; then
 		else
 			echo "NO"
 		fi
+		if [ ! $preloadfile == false ] ; then
+			echo -n "Preload database with: "
+			echo "$preloadfile" 
+		fi
 		echo -n "Import sample data: "
 		if [ $sampledata == true ] ; then
 			echo "YES"
@@ -373,6 +421,33 @@ fi
 
 db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |cut -d '"' -f1 |head -n1`
 
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	echo
+	echo -n "Checking repos out to reference data hashes ... "
+	commits=`wget -qO- "$commit_url"`
+	commit_list=$(echo $commits | tr ";" "\n")
+
+	for item in $commit_list
+	do
+		repo=`echo "$item" |sed 's/:.*$//'`
+		commit=`echo "$item" |sed 's/^.*://'`
+
+		if [ "$repo" == "core" ] ; then
+			cd "$path"
+		else
+			if [ ! -e "$path/modules/$repo" ] ; then
+				echo "failed"
+				echo "Path not found: $path/modules/$repo"
+				exit 0
+			fi
+			cd "$path/modules/$repo"
+		fi
+		do_checkout_commit
+	done
+	echo "ok"
+	echo
+fi
+
 get_mysql
 
 if [ $reset == true ] ; then
@@ -390,6 +465,14 @@ if [ $reset == true ] ; then
 	echo
 fi
 
+if [ ! $preloadfile == false ] ; then
+	echo -n "Importing preload file: $preloadfile ... "
+	r=`cat "$preloadfile" | $mysql -D $db 2>&1`
+	verify_mysql
+	echo "ok"
+	echo
+fi
+
 if [ $sampledata == true ] ; then
 	echo -n "Importing sample data ... "
 	r=`cat "$path/modules/sample/sql/openeyes+ophtroperationbooking.sql" | $mysql -D $db 2>&1`
@@ -399,10 +482,12 @@ if [ $sampledata == true ] ; then
 fi
 
 if [ $update == true ] ; then
-	echo "Updating repos and checking out to target release branch: $branch ... "
-	echo
-	checkout_and_update
-	echo
+	if [ $import_ref_all == false ] && [ $import_ref_all_users == false ] ; then
+		echo "Updating repos and checking out to target release branch: $branch ... "
+		echo
+		checkout_and_update
+		echo
+	fi
 fi
 
 echo "Running migrations ... "
@@ -417,10 +502,39 @@ rm -rf "$path/../assets/*"
 echo
 
 if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
-	if [ $import_files_after == false ] ; then
-		import_from_url
+	import_from_url
+fi
+
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	if [ $update == true ] ; then
+		echo "Updating repos and checking out to target release branch: $branch ... "
 		echo
+		checkout_and_update
+		echo
+	else
+		echo "Switching repos back to target release branch: $branch ... "
+		for item in $commit_list
+		do
+			repo=`echo "$item" |sed 's/:.*$//'`
+
+			if [ "$repo" == "core" ] ; then
+				cd "$path"
+			else
+				if [ ! -e "$path/modules/$repo" ] ; then
+					echo "failed"
+					echo "Path not found: $path/modules/$repo"
+					exit 0
+				fi
+				cd "$path/modules/$repo"
+			fi
+			do_checkout
+		done
 	fi
+	echo "Running migrations ... "
+	echo
+	migrate_all
+	migrate_all
+	echo
 fi
 
 if [ ${#import_files} != 0 ] ; then
@@ -449,13 +563,6 @@ echo yes |./yiic migrate
 echo
 echo "$branch has been deployed to the instance at: $path"
 echo
-
-if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
-	if [ $import_files_after == true ] ; then
-		import_from_url
-		echo
-	fi
-fi
 
 if [ ${#import_files} != 0 ] ; then
 	if [ $import_files_after == true ] ; then

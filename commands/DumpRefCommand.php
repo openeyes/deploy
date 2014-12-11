@@ -31,7 +31,6 @@ class DumpRefCommand extends CConsoleCommand {
 		'contact_location',
 		'contact_metadata',
 		'element_type',
-		'episode_summary',
 		'event_group',
 		'event_type',
 		'event_issue',
@@ -106,6 +105,11 @@ class DumpRefCommand extends CConsoleCommand {
 		'setting_subspecialty',
 		'setting_user',
 		'ophtroperationnote_procedure_element',
+	);
+
+	/* Same as above for event_type table */
+	public $remap_event_type_for = array(
+		'episode_summary_item',
 	);
 
 	/* When processing the table on the left, don't follow foreign keys for any tables in the list on the right. This is necessary because user<>firm foreign keys create an infinite loop */
@@ -252,7 +256,9 @@ class DumpRefCommand extends CConsoleCommand {
 						}
 					} else {
 						if ($fk[0] == $match) {
-							return false;
+							if ($match != 'event_type' || !in_array($table->name,$this->remap_event_type_for)) {
+								return false;
+							}
 						}
 					}
 				}
@@ -289,6 +295,11 @@ class DumpRefCommand extends CConsoleCommand {
 								break;
 							case 'element_type':
 								if (!in_array($table->name,$this->remap_element_type_for)) {
+									$process = false;
+								}
+								break;
+							case 'event_type':
+								if (!in_array($table->name,$this->remap_event_type_for)) {
 									$process = false;
 								}
 								break;
@@ -433,6 +444,18 @@ class DumpRefCommand extends CConsoleCommand {
 				}
 			}
 
+			if (in_array($table->name,$this->remap_event_type_for)) {
+				foreach ($table->foreignKeys as $field => $fk) {
+					if ($fk[0] == 'event_type') {
+						if ($row[$field]) {
+							$et = Yii::app()->db->createCommand()->select("*")->from("event_type")->where("id = :id",array(":id" => $row[$field]))->queryRow();
+
+							$row[$field] = "{{EventType,{$et['class_name']}}}";
+						}
+					}
+				}
+			}
+
 			if ($i >0) {
 				echo ",";
 			}
@@ -479,6 +502,8 @@ class DumpRefCommand extends CConsoleCommand {
 			} else if (preg_match('/^\{\{ElementType,(.*?),(.*?)\}\}$/',$value,$m)) {
 				$m[1] = str_replace('\\','\\\\',$m[1]);
 				$values[] = "(select id from element_type where class_name = '{$m[1]}' and event_type_id = (select id from event_type where class_name = '{$m[2]}'))";
+			} else if (preg_match('/^\{\{EventType,(.*?)\}\}$/',$value,$m)) {
+				$values[] = "(select id from event_type where class_name = '{$m[1]}')";
 			} else {
 				$values[] = "'".mysql_escape_string($value)."'";
 			}
