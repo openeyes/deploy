@@ -489,12 +489,12 @@ get_mysql
 if [ $reset == true ] ; then
 	echo
 	echo -n "Dropping $db ... "
-	r=`echo "drop database $db;" | $mysql 2>&1`
+	r=`echo "drop database `$db`;" | $mysql 2>&1`
 	verify_mysql
 	echo "ok"
 
 	echo -n "Creating $db ... "
-	r=`echo "create database $db;" | $mysql 2>&1`
+	r=`echo "create database `$db`;" | $mysql 2>&1`
 	verify_mysql
 	echo "ok"
 
