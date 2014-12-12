@@ -3,7 +3,7 @@
 function usage()
 {
 	echo
-	echo "Usage: deploy [-rsuyabm] [-p <file>] [-i <file>] [path] [release branch]"
+	echo "Usage: deploy [-rsuyabm] [-p <file>] [-i <file>] [-L <release tag>] [path] [release branch]"
 	echo
 	echo "-r Reset the database (THIS WILL DELETE ALL EXISTING DATA)"
 	echo "-s Import the sample data from the sample repo"
@@ -13,8 +13,9 @@ function usage()
 	echo "-i Import additional SQL files (can be specified multiple times)"
 	echo "-a Import additional SQL files after deployment scripts"
 	echo "-b Import additional SQL files before deployment scripts (default)"
-	echo "-m Import reference data from preconfigured url path (excluding users)"
-	echo "-n Import reference data from preconfigured url path (including users)"
+	echo "-m Import reference data from preconfigured url path (excluding users, always done before newer migrations)"
+	echo "-n Import reference data from preconfigured url path (including users, always done before newer migrations))"
+	echo "-L Live deployment to the specified release tag. Repos will be checked out to the tag, deploy scripts will be run from the release branch."
 	echo
 	echo "You can omit the path if you are currently in an OpenEyes directory tree."
 	echo "If you omit the release branch it will use whatever branch the core repo is on."
@@ -40,9 +41,16 @@ function checkout_and_update()
 
 	echo -n "core: "
 
-	echo -n "checking branch.. "
+	if [ $release_tag == false ] ; then
+		echo -n "checking branch.. "
 
-	do_checkout
+		do_checkout
+	else
+		echo -n "checking tag.. "
+
+		commit=$release_tag
+		do_checkout_commit
+	fi
 
 	echo -n "checking for updates.. "
 
@@ -57,7 +65,12 @@ function checkout_and_update()
 		if [ "$module" != "deploy" ] ; then
 			echo -n "$module: "
 
-			do_checkout
+			if [ $release_tag == false ] ; then
+				do_checkout
+			else
+				do_checkout_commit
+			fi
+
 			do_pull
 
 			echo "ok"
@@ -89,10 +102,33 @@ function do_checkout()
 		x=`git branch |egrep "^\\* $branch"`
 		if [ -z "$x" ] ; then
 			echo -n "checking out branch.. "
-			git checkout $branch
+			r=`git checkout $branch 2>&1`
+			x=`echo "$r" |grep 'Switched to branch'`
+			if [ -z "$x" ] ; then
+				echo
+				echo "Errors encountered:"
+				echo
+				echo "$r"
+				exit
+			fi
 		else
 			echo -n "already on branch.. "
 		fi
+	fi
+}
+
+function do_checkout_commit()
+{
+	git fetch 1>/dev/null 2>/dev/null
+
+	r=`git checkout $commit 2>&1`
+	x=`echo "$r" |egrep '^HEAD is now at'`
+	if [ -z "$x" ] ; then
+		echo
+		echo "Errors encountered:"
+		echo
+		echo "$r"
+		exit
 	fi
 }
 
@@ -224,6 +260,8 @@ function load_deploy_config()
 	else
 		import_url=`cat "$HOME/.deploy.conf" |egrep '^all-users:' |sed 's/^all://'`
 	fi
+
+	commit_url=`cat "$HOME/.deploy.conf" |egrep '^commits:' |sed 's/^commits://'`
 }
 
 path=`echo -n \`pwd |sed 's/\/protected.*$//'\` ; echo "/protected"`
@@ -240,6 +278,8 @@ import_files_after=false
 path_set=false
 import_ref_all=false
 import_ref_all_users=false
+release_tag=false
+next_release_tag=false
 
 for var in "$@"
 do
@@ -252,6 +292,12 @@ do
 	if [ $next_preload == true ] ; then
 		preloadfile=$var
 		next_preload=false
+		continue
+	fi
+
+	if [ $next_release_tag == true ] ; then
+		release_tag=$var
+		next_release_tag=false
 		continue
 	fi
 
@@ -289,6 +335,8 @@ do
 					exit 0
 				fi
 				import_ref_all_users=true
+			elif [ ${var:$i:1} == "L" ] ; then
+				next_release_tag=true
 			fi
 
 			i=$((i+1))
@@ -322,6 +370,13 @@ fi
 if [ "$branch" == "" ] ; then
 	cd $path
 	branch=`git branch |egrep '^\*' |cut -d ' ' -f2`
+
+	if [ "$branch" == "(detached" ] ; then
+		echo
+		echo "No release branch specified and core is in detached HEAD state. Unable to continue."
+		echo
+		exit 0
+	fi
 fi
 
 if [ ${#import_files} != 0 ] ; then
@@ -341,7 +396,13 @@ fi
 if [ $prompt == true ] ; then
 	while true; do
 		echo
-		echo "This will deploy branch $branch to the instance at $path"
+		if [ $release_tag == false ] ; then
+			echo "This will deploy branch $branch to the instance at $path"
+		else
+			echo "This will deploy tag $release_tag to the instance at $path using deploy scripts from branch $branch"
+		fi
+		echo
+		echo "This is a live deployment."
 		echo
 		echo -n "Reset database: "
 		if [ $reset == true ] ; then
@@ -396,6 +457,33 @@ fi
 
 db=`cat $path/config/local/common.php |grep ';dbname=' |sed 's/.*dbname=//' |cut -d "'" -f1 |cut -d '"' -f1 |head -n1`
 
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	echo
+	echo -n "Checking repos out to reference data hashes ... "
+	commits=`wget -qO- "$commit_url"`
+	commit_list=$(echo $commits | tr ";" "\n")
+
+	for item in $commit_list
+	do
+		repo=`echo "$item" |sed 's/:.*$//'`
+		commit=`echo "$item" |sed 's/^.*://'`
+
+		if [ "$repo" == "core" ] ; then
+			cd "$path"
+		else
+			if [ ! -e "$path/modules/$repo" ] ; then
+				echo "failed"
+				echo "Path not found: $path/modules/$repo"
+				exit 0
+			fi
+			cd "$path/modules/$repo"
+		fi
+		do_checkout_commit
+	done
+	echo "ok"
+	echo
+fi
+
 get_mysql
 
 if [ $reset == true ] ; then
@@ -430,10 +518,16 @@ if [ $sampledata == true ] ; then
 fi
 
 if [ $update == true ] ; then
-	echo "Updating repos and checking out to target release branch: $branch ... "
-	echo
-	checkout_and_update
-	echo
+	if [ $import_ref_all == false ] && [ $import_ref_all_users == false ] ; then
+		if [ $release_tag == false ] ; then
+			echo "Updating repos and checking out to target release branch: $branch ... "
+		else
+			echo "Updating repos and checking out to target release tag: $release_tag ... "
+		fi
+		echo
+		checkout_and_update
+		echo
+	fi
 fi
 
 echo "Running migrations ... "
@@ -448,10 +542,39 @@ rm -rf "$path/../assets/*"
 echo
 
 if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
-	if [ $import_files_after == false ] ; then
-		import_from_url
+	import_from_url
+fi
+
+if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
+	if [ $update == true ] ; then
+		echo "Updating repos and checking out to target release branch: $branch ... "
 		echo
+		checkout_and_update
+		echo
+	else
+		echo "Switching repos back to target release branch: $branch ... "
+		for item in $commit_list
+		do
+			repo=`echo "$item" |sed 's/:.*$//'`
+
+			if [ "$repo" == "core" ] ; then
+				cd "$path"
+			else
+				if [ ! -e "$path/modules/$repo" ] ; then
+					echo "failed"
+					echo "Path not found: $path/modules/$repo"
+					exit 0
+				fi
+				cd "$path/modules/$repo"
+			fi
+			do_checkout
+		done
 	fi
+	echo "Running migrations ... "
+	echo
+	migrate_all
+	migrate_all
+	echo
 fi
 
 if [ ${#import_files} != 0 ] ; then
@@ -480,13 +603,6 @@ echo yes |./yiic migrate
 echo
 echo "$branch has been deployed to the instance at: $path"
 echo
-
-if [ $import_ref_all == true ] || [ $import_ref_all_users == true ] ; then
-	if [ $import_files_after == true ] ; then
-		import_from_url
-		echo
-	fi
-fi
 
 if [ ${#import_files} != 0 ] ; then
 	if [ $import_files_after == true ] ; then
