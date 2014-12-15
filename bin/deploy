@@ -400,9 +400,9 @@ if [ $prompt == true ] ; then
 			echo "This will deploy branch $branch to the instance at $path"
 		else
 			echo "This will deploy tag $release_tag to the instance at $path using deploy scripts from branch $branch"
+			echo
+			echo "This is a live deployment."
 		fi
-		echo
-		echo "This is a live deployment."
 		echo
 		echo -n "Reset database: "
 		if [ $reset == true ] ; then
