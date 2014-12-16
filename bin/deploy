@@ -80,7 +80,7 @@ function checkout_and_update()
 
 function do_checkout()
 {
-	git fetch 1>/dev/null 2>/dev/null
+	git fetch --tags 1>/dev/null 2>/dev/null
 
 	x=`git branch |grep "$branch"`
 
@@ -119,7 +119,7 @@ function do_checkout()
 
 function do_checkout_commit()
 {
-	git fetch 1>/dev/null 2>/dev/null
+	git fetch --tags 1>/dev/null 2>/dev/null
 
 	r=`git checkout $commit 2>&1`
 	x=`echo "$r" |egrep '^HEAD is now at'`
