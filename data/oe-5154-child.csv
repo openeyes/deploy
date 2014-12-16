@@ -1,0 +1,62 @@
+,,,,
+,,,,
+,Primary menu,Associated with menu ,Background mapping to term,
+,,,,
+,,,,
+,Primary Congenital Glaucoma ,,Primary Congenital Glaucoma in snowmed,415176004
+,,Neonatal or newborn onset (0-1 month) ,,107
+,,Infantile onset (>1-24 months) ,,108
+,,Late onset or late-recognized (>2 years) ,,109
+,,Spontaneously arrested,,110
+,,,,
+,Juvenile Open Angle Glaucoma,,,
+,,,,
+,Childhood Glaucoma Associated with Non-acquired Ocular Anomalies ,,,113
+,,Axenfeld Rieger anomaly ,Axenfeld Rieger anomaly (disorder),204152008
+,,Axenfeld Rieger syndrome,Axenfeld Rieger syndrome (disorder),417604002
+,,Peters anomaly ,Map to 204153003 'irido-corneo-trabecular dysgenesis disorder),204153003
+,,Peters syndrome,Peters plus syndrome (disorder),111
+,,Congenital ectropion uveae,Congenital iris ectropion (disorder),400965007
+,,Congenital iris hypoplasia,Hypoplasia of iris (disorder),95714006
+,,Aniridia,Congenital aniridia (disorder),69278003
+,,Persistent fetal vasculature (if glaucoma present before cataract surgery),PHPV (disorder) 69927002,112
+,,Oculodermal melanocytosis (Nevus of Ota)  ,Oculodermal melanocytosis (disorder),414929001
+,,Posterior polymorphous dystrophy,Posterior polymorphous corneal dystrophy (disorder) 29504002,29504002
+,,Microphthalmos,Microphthalmos (disorder),61142002
+,,Microcornea,Microcornea (disorder),26098002
+,,Ectopia lentis simple (no systemic associations) ,Simple ectopia lentis (disorder),422311004
+,,Ectopia lentis et pupillae,Ectopia lentis et pupillae (disorder),419237004
+,,Other,0ther,
+,,,,
+,Childhood Glaucoma Associated with Non-acquired Systemic Disease or Syndrome ,,,114
+,,Chromosomal disorders ,Chromosomal disorder (disorder) 409709004,409709004
+,,Marfan syndrome,Marfan's syndrome (disorder),19346006
+,,Weill-Marchesani syndrome,Weill-Marchesani syndrome (disorder),2884008
+,,Stickler syndrome,Stickler syndrome (disorder),78675000
+,,Homocystinuria,Homocystinuria (disorder),11282001
+,,Lowe syndrome,Lowe syndrome (disorder),79385002
+,,Mucopolysaccharidoses ,Mucopolysaccharidosis (disorder),11380006
+,,Neurofibromatosis,Neurofibromatosis syndrome(disorder),19133005
+,,Sturge-Weber syndrome ,Sturge-Weber syndrome (disorder),19886006
+,,Klippel-Trenaunay-Weber syndrome,Klippel-Trenaunay-Weber syndrome (disorder),59078009
+,,Rubinstein-Taybi syndrome,Rubinstein-Taybi syndrome (disorder),45582004
+,,Cutis Marmorata Telangiectasia Congenita,Cutis Marmorata (disorder),26825009
+,,Congenital Rubella,Rubella (disorder) ,36653000
+,,Other,,
+,,,,
+,Childhood Glaucoma Associated with Acquired Condition ,,,113
+,,Uveitis,Glaucoma associated with Ocular Inflammation ,37155002
+,,Steroid induced,Corticosteroid induced Glaucoma ,1654001
+,,Trauma,Glaucoma associated with Ocular Trauma ,68241007
+,,Tumors ,Glaucoma associated with Tumors ,27735002
+,,Retinopathy of Prematurity ,Retinopathy of Prematurity ,415297005
+,,Post surgery other than cataract surgery,Glaucoma following surgery,232090003
+,,Other,,
+,,,,
+,Childhood Glaucoma Following Cataract Surgery ,,,115
+,,Congenital idiopathic cataract ,,116
+,,Congenital cataract associated with ocular anomalies / systemic disease (no previous glaucoma),,117
+,,Acquired cataract (no previous glaucoma),,118
+,,,,
+,Childhood Glaucoma of Unknown Aetiology,,,119
+,,,,
