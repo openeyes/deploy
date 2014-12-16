@@ -27,7 +27,7 @@ class m141205_111519_vc_config extends CDbMigration
 			'name' => 'Complete',
 			'description' => 'Glaucoma Virtual clinic completed',
 			'is_initial' => false,
-			'assignment_fields' => '[{"id":"glreview", "type":"widget", "widget_name": "TicketAssignOutcome"}]',
+			'assignment_fields' => '[{"id":"glreview", "type":"widget", "widget_name": "TicketAssignAppointment"}]',
 			'report_definition' => '[pt_glreview_appointment]',
 		));
 
