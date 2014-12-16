@@ -39,7 +39,6 @@ class m141205_111519_vc_config extends CDbMigration
 
 	public function down()
 	{
-		$this->delete('ophciexamination_clinicoutcome_status',"name = 'Refer to Virtual Clinic'");
 		$this->delete('patientticketing_queueoutcome',"id in (1,2)");
 		$this->delete('patientticketing_queueset',"id in (1,2)");
 		$this->delete('patientticketing_queue',"id in (1,2,3)");
