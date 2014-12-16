@@ -40,6 +40,7 @@ class DumpRefCommand extends CConsoleCommand {
 		'firm_user_assignment',
 		'gp',
 		'mehbookinglogger_log',
+		'pas_assignment',
 		'patient',
 		'tbl_audit_trail',
 		'tbl_migration',
