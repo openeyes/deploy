@@ -34,7 +34,7 @@ class m141205_111519_vc_config extends CDbMigration
 		$this->insert('patientticketing_queueset',array('id'=>1,'name'=>'Glaucoma Virtual Clinic','description'=>'Virtual Clinic for Glaucoma patient review','category_id'=>1,'initial_queue_id'=>1,'summary_link'=>true,'allow_null_priority'=>true));
 		$this->insert('patientticketing_queueoutcome',array('id'=>1,'queue_id'=>1,'outcome_queue_id'=>2,'display_order'=>1));
 		$this->insert('patientticketing_queueoutcome',array('id'=>2,'queue_id'=>2,'outcome_queue_id'=>3,'display_order'=>1));
-		$this->insert('ophciexamination_clinicoutcome_status',array('name'=>'Refer to Virtual Clinic','display_order'=>3,'patientticket'=>true));
+		$this->update('ophciexamination_clinicoutcome_status',array('patientticket'=>true),"name = 'Refer to VC'" );
 	}
 
 	public function down()
