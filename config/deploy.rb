@@ -2,7 +2,7 @@
 lock '3.4.0'
 
 set :application, 'OpenEyes'
-set :repo_url, 'git@github.com:openeyes/OpenEyes.git'
+set :repo_url, 'https://github.com/openeyes/OpenEyes.git'
 set :scm, :git
 
 
