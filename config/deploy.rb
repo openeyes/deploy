@@ -50,5 +50,6 @@ namespace :deploy do
     end
   end
 
-  before 'deploy:updated', 'deploy:copy_files', 'deploy:migrate'
+  before 'deploy:updated', 'deploy:copy_files'
+  before 'deploy:updated', 'deploy:migrate'
 end
