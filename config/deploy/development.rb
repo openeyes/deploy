@@ -1,6 +1,6 @@
 set :stage, :develop
 
-server 'develop.openeyes.org.uk',
+server '52.49.56.3',
   user: 'deploy',
   roles: %w{web}
 

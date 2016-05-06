@@ -1,5 +1,5 @@
 # config valid only for current version of Capistrano
-lock '3.4.0'
+lock '3.5.0'
 
 set :application, 'OpenEyes'
 set :repo_url, 'https://github.com/openeyes/OpenEyes.git'
@@ -52,8 +52,10 @@ namespace :deploy do
 
   task :set_perm do
     on roles(:web) do
+      execute :mkdir,  "#{release_path}/assets"
       execute :chmod, "-R", "777", "#{release_path}/assets"
       execute :chmod, "777", "#{release_path}/protected/files"
+      execute :chmod, "777", "#{release_path}/protected/runtime"
     end
   end
 
