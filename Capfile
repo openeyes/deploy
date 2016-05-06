@@ -1,10 +1,13 @@
+require 'airbrussh/capistrano'
+
 # Load DSL and set up stages
-require 'capistrano/setup'
+require 'capistrano/multiconfig'
 
 # Include default deployment tasks
 require 'capistrano/deploy'
 
 require 'capistrano/composer'
+
 
 # Include tasks from other gems included in your Gemfile
 #
