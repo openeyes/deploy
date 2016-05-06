@@ -6,6 +6,9 @@ require 'capistrano/multiconfig'
 # Include default deployment tasks
 require 'capistrano/deploy'
 
+require 'capistrano/npm'
+require 'capistrano/bower'
+require 'capistrano/gulp'
 require 'capistrano/composer'
 
 

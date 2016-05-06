@@ -4,6 +4,10 @@ set :repo_url, 'https://github.com/openeyes/OpenEyes.git'
 set :linked_files, fetch(:linked_files, []).push('.htaccess')
 set :linked_dirs, fetch(:linked_dirs, []).push('protected/config/local', 'protected/runtime', 'protected/modules', 'protected/files')
 
+Rake::Task['deploy:updated'].prerequisites.delete('npm:install')
+Rake::Task['deploy:updated'].prerequisites.delete('bower:install')
+
+
 SSHKit.config.command_map[:yiic] = "protected/yiic"
 
 
