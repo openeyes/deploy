@@ -49,6 +49,7 @@ namespace :deploy do
   task :create_storage do
     on roles(:web) do
       execute :mkdir, '-p', "#{release_path}/api/storage/{app,logs,framework}"
+      execute :mkdir, '-p', "#{release_path}/api/storage/framework/{cache,views,sessions}"
       execute :chmod, '775', "#{release_path}/api/storage/{app,logs,framework}"
       execute :chmod, '775', "#{release_path}/api/bootstrap/cache"
     end
