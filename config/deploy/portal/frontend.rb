@@ -1,3 +1,6 @@
+set :application, 'Portal_Frontend'
+set :repo_url, 'git@github.com:across-health/oe-community-portal.git'
+
 set :gulp_tasks, 'build'
 set :npm_flags, '--silent --no-progress'
 

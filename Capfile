@@ -11,7 +11,6 @@ require 'capistrano/bower'
 require 'capistrano/gulp'
 require 'capistrano/composer'
 
-
 # Include tasks from other gems included in your Gemfile
 #
 # For documentation on these, see for example:
