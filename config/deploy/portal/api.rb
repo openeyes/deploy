@@ -50,6 +50,7 @@ namespace :deploy do
     on roles(:web) do
       execute :mkdir, '-p', "#{release_path}/api/storage/{app,logs,framework}"
       execute :chmod, '775', "#{release_path}/api/storage/{app,logs,framework}"
+      execute :chmod, '775', "#{release_path}/api/bootstrap/cache"
     end
   end
 
