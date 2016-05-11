@@ -54,9 +54,16 @@ namespace :deploy do
     end
   end
 
+  task :restart_php do
+    on roles(:web) do
+      execute :sudo, :service, 'php5-fpm restart'
+    end
+  end
+
 
   before 'deploy:updated', 'deploy:create_storage'
   before 'deploy:updated', 'laravel:optimize'
   before 'deploy:updated', 'deploy:migrate'
 
+  after 'deploy:symlink:release', 'deploy:restart_php'
 end
