@@ -2,7 +2,7 @@ set :application, 'OpenEyes'
 set :repo_url, 'https://github.com/openeyes/OpenEyes.git'
 
 set :linked_files, fetch(:linked_files, []).push('.htaccess')
-set :linked_dirs, fetch(:linked_dirs, []).push('protected/config/local', 'protected/runtime', 'protected/modules', 'protected/files')
+set :linked_dirs, fetch(:linked_dirs, []).push('protected/config/local', 'protected/runtime', 'protected/files',  'protected/modules/eyedraw')
 
 Rake::Task['deploy:updated'].prerequisites.delete('npm:install')
 Rake::Task['deploy:updated'].prerequisites.delete('bower:install')
@@ -47,7 +47,10 @@ namespace :deploy do
     end
   end
 
+
   before 'deploy:updated', 'deploy:set_perm'
   before 'deploy:updated', 'deploy:copy_files'
   before 'deploy:updated', 'deploy:migrate'
+
+  after 'deploy:symlink:release', 'deploy:restart_php'
 end
