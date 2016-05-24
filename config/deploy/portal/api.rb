@@ -35,9 +35,7 @@ namespace :laravel do
       end
     end
   end
-end
 
-namespace :deploy do
   task :migrate do
     on roles(:web) do
       within release_path do
@@ -45,6 +43,9 @@ namespace :deploy do
       end
     end
   end
+end
+
+namespace :deploy do
 
   task :create_storage do
     on roles(:web) do
@@ -57,8 +58,8 @@ namespace :deploy do
 
 
   before 'deploy:updated', 'deploy:create_storage'
+  before 'deploy:updated', 'laravel:migrate'
   before 'deploy:updated', 'laravel:optimize'
-  before 'deploy:updated', 'deploy:migrate'
 
   after 'deploy:symlink:release', 'deploy:restart_php'
 end
