@@ -6,4 +6,4 @@ server '52.49.56.3',
 
 set :deploy_to, '/var/www/portal_frontend'
 set :branch, 'develop'
-
+set :gulp_tasks, 'build --env=development'
