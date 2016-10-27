@@ -9,8 +9,6 @@ GEM
       i18n
       rake (>= 10.0.0)
       sshkit (>= 1.9.0)
-    capistrano-bower (1.1.0)
-      capistrano (~> 3.0)
     capistrano-composer (0.0.6)
       capistrano (>= 3.0.0.pre)
     capistrano-file-permissions (1.0.0)
@@ -40,12 +38,8 @@ PLATFORMS
 
 DEPENDENCIES
   capistrano (~> 3.5.0)
-  capistrano-bower
   capistrano-composer
   capistrano-gulp
   capistrano-laravel
   capistrano-multiconfig
   capistrano-npm
-
-BUNDLED WITH
-   1.12.2
