@@ -1,4 +1,15 @@
-This repository contains a Capistrano config to deploy OpenEyes to your server. There are development and staging
-configs for the servers used by the core OpenEyes team and Moorfields Eye Hospital. To deploy to your own servers 
-the repository will need to be forked and your own configuration added. As OpenEyes uses Composer to manage 
-dependencies this module requires the capistrano-composer gem from https://github.com/capistrano/composer.
+This is a capistrano config that can be used to deploy openeyes and associated repositories.
+
+For information on how to install and use capistrano see http://capistranorb.com/
+
+This configuration makes use of `capistrano-multiconfig` to allow multiple deployments in one configuration. https://github.com/railsware/capistrano-multiconfig
+
+The commands to deploy follow exactly the file structure in the deploy folder, eg:
+
+`cap portal:api:staging deploy`
+
+will deploy the portal api staging configuration.
+
+Staging configs accept a branch to define which release branch you want to deploy, eg:
+
+`cap portal:api:staging deploy branch=release/v1.1.0`
