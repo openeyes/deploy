@@ -1,6 +1,6 @@
 set :stage, :production
 
-server '52.16.74.252',
+server 'oegateway.org.uk',
   user: 'deploy',
   roles: %w{web}
 
