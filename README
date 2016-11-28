@@ -13,3 +13,8 @@ will deploy the portal api staging configuration.
 Staging configs accept a branch to define which release branch you want to deploy, eg:
 
 `cap portal:api:staging deploy branch=release/v1.1.0`
+
+The script uses SSH forwarding to check out private code from github. So you will not 
+only need to have your key added in the authorized keys of the deploy user on any 
+server you wish to deploy to but also have ssh-add'ed the github SSH key you use
+to check out the repository you are deploying.
