@@ -5,4 +5,4 @@ server 'dev.oesign.uk',
   roles: %w{web}
 
 set :deploy_to, '/var/www/signature'
-set :branch, 'develop'
+set :branch, ENV.fetch('branch', 'develop')
